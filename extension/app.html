@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FEL Factura Personalizada</title>
+  <link rel="stylesheet" href="app.css">
+  <style id="page-size">@page { size: letter; margin: 10mm; }</style>
+</head>
+<body>
+  <aside class="panel no-print">
+    <h1>FEL Factura Personalizada</h1>
+
+    <div id="drop" class="drop" tabindex="0">
+      <strong>Arrastre aquí los XML</strong>
+      <span>o</span>
+      <button type="button" id="pick" class="btn">Seleccionar archivos XML</button>
+      <input type="file" id="file" accept=".xml,text/xml,application/xml" multiple hidden>
+    </div>
+    <details class="paste">
+      <summary>Pegar el contenido XML</summary>
+      <textarea id="pasteText" rows="4" placeholder="&lt;dte:GTDocumento ...&gt;"></textarea>
+      <button type="button" id="pasteBtn" class="btn small">Cargar XML pegado</button>
+    </details>
+
+    <section>
+      <div class="row between">
+        <h2>Documentos</h2>
+        <button type="button" id="clear" class="link">Quitar todos</button>
+      </div>
+      <ul id="docs" class="docs"><li class="empty">Todavía no hay documentos cargados.</li></ul>
+      <button type="button" id="printAll" class="btn primary wide" disabled>Imprimir / Guardar PDF</button>
+      <p class="hint">En el diálogo de impresión elija <b>Destino: Guardar como PDF</b>. Active «Gráficos de fondo» para conservar los colores.</p>
+    </section>
+
+    <section>
+      <h2>Personalización</h2>
+      <form id="settings" autocomplete="off">
+        <fieldset>
+          <legend>Logo</legend>
+          <div class="logo-row">
+            <img id="logoPreview" alt="" hidden>
+            <button type="button" id="logoPick" class="btn small">Elegir imagen</button>
+            <button type="button" id="logoClear" class="link">Quitar</button>
+            <input type="file" id="logoFile" accept="image/*" hidden>
+          </div>
+          <label>Alto del logo <input type="range" name="logoAlto" min="30" max="140" step="5"></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Colores y letra</legend>
+          <div class="row">
+            <label class="color">Principal <input type="color" name="colorPrimario"></label>
+            <label class="color">Fondo de bloques <input type="color" name="colorSecundario"></label>
+          </div>
+          <label>Tipo de letra
+            <select name="fuente">
+              <option value="helvetica">Helvetica / Arial</option>
+              <option value="georgia">Georgia (serif)</option>
+              <option value="verdana">Verdana</option>
+              <option value="trebuchet">Trebuchet</option>
+              <option value="courier">Courier (monoespaciada)</option>
+            </select>
+          </label>
+          <label>Papel
+            <select name="papel">
+              <option value="letter">Carta</option>
+              <option value="A4">A4</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Encabezado</legend>
+          <label>Nombre destacado
+            <select name="nombreDestacado">
+              <option value="comercial">Nombre comercial</option>
+              <option value="emisor">Nombre del emisor (razón social)</option>
+            </select>
+          </label>
+          <label>Datos de contacto adicionales
+            <textarea name="encabezadoExtra" rows="3" placeholder="Tel. 5555-5555 · ventas@miempresa.com&#10;www.miempresa.com"></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Detalle</legend>
+          <label class="check"><input type="checkbox" name="mostrarDescuentos"> Columnas de descuentos</label>
+          <label class="check"><input type="checkbox" name="ocultarColumnasVacias"> Ocultar columnas de descuento si están en cero</label>
+          <label class="check"><input type="checkbox" name="mostrarImpuestoLinea"> Impuestos por línea</label>
+          <label class="check"><input type="checkbox" name="mostrarEnLetras"> Total en letras</label>
+          <label class="check"><input type="checkbox" name="mostrarAdenda"> Mostrar adenda del XML</label>
+          <label>Decimales en montos
+            <select name="decimales">
+              <option value="2">2</option>
+              <option value="4">4</option>
+              <option value="6">6 (como el PDF de la SAT)</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Textos</legend>
+          <label>Notas / condiciones (debajo de los totales)
+            <textarea name="notas" rows="3" placeholder="Garantía de 30 días. Cuenta para depósitos: ..."></textarea>
+          </label>
+          <label>Pie de página
+            <textarea name="piePagina" rows="2" placeholder="¡Gracias por su compra!"></textarea>
+          </label>
+          <label>Textos de frases no reconocidas
+            <textarea name="frasesPersonalizadas" rows="2" placeholder="4-1=Texto de la frase tipo 4, escenario 1"></textarea>
+          </label>
+        </fieldset>
+      </form>
+      <div class="row gap">
+        <button type="button" id="export" class="btn small">Exportar configuración</button>
+        <button type="button" id="import" class="btn small">Importar</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+        <button type="button" id="reset" class="link">Restablecer</button>
+      </div>
+    </section>
+
+    <p class="hint">El XML firmado sigue siendo el documento legal. Esta representación conserva todos sus datos fiscales y el QR al verificador de la SAT, por lo que siempre se puede validar.</p>
+  </aside>
+
+  <main id="preview" class="preview">
+    <div class="placeholder no-print">
+      <p>Cargue un XML de factura FEL para ver aquí la vista previa.</p>
+    </div>
+  </main>
+
+  <div id="toast" class="toast no-print" role="status" hidden></div>
+
+  <script src="lib/qrcode.js"></script>
+  <script src="lib/numero-letras.js"></script>
+  <script src="lib/fel-parser.js"></script>
+  <script src="lib/invoice-render.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
